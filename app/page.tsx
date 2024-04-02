@@ -1,5 +1,4 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { blogCard } from "./lib/interface";
 import { client, urlFor } from "./lib/sanity";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -9,12 +8,21 @@ export const revalidate = 30; // revalidate at most 30 seconds
 
 async function getData() {
   const query = `
-  *[_type == 'blog'] | order(_createdAt desc) {
-    title,
-      smallDescription,
-      "currentSlug": slug.current,
-      titleImage
-  }`;
+    {
+      "tags": *[_type == 'tag'] {
+        name
+      },
+      "posts": *[_type == 'blog'] | order(_createdAt desc) {
+        title,
+        smallDescription,
+        "currentSlug": slug.current,
+        titleImage,
+        tags[]->{
+          name
+        }
+      }
+    }
+  `;
 
   const data = await client.fetch(query);
 
@@ -22,13 +30,13 @@ async function getData() {
 }
 
 export default async function Home() {
-  const data: blogCard[] = await getData();
+  const { tags, posts } = await getData();
 
-  console.log(data);
+  console.log(posts);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 mt-5 gap-5">
-      {data.map((post, idx) => (
+      {posts.map((post: any, idx: any) => (
         <Card key={idx}>
           <Image
             src={urlFor(post.titleImage).url()}
@@ -43,7 +51,16 @@ export default async function Home() {
             <p className="line-clamp-3 text-sm mt-2 text-gray-600 dark:text-gray-300">
               {post.smallDescription}
             </p>
-            <Button asChild className="w-full mt-7">
+            <div className="mt-3">
+              {post.tags.map((tag: any, index: any) => (
+                <span key={index} className="inline-block bg-gray-200 dark:bg-gray-700 text-sm text-gray-600 dark:text-gray-300 px-2 py-1 rounded line-clamp-3 mr-2">
+                <Link href={`/tag/${tag.name}`}>
+                #{tag.name}
+                </Link>
+            </span>
+              ))}
+            </div>
+            <Button asChild className="w-full mt-3">
               <Link href={`/blog/${post.currentSlug}`}>Read More</Link>
             </Button>
           </CardContent>
